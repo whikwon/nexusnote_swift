@@ -12,44 +12,10 @@ import PDFKit
 import SwiftUI
 import PDFKit
 
+// PDFOutlineView.swift
 struct PDFOutlineView: View {
-    @ObservedObject var viewModel: PDFDrawingViewModel
-    let coordinator: PDFDrawingCoordinator
-    @State private var isOutlinePresented = false
-    
-    var body: some View {
-        HStack {
-            // Add outline button to existing navigation
-            Button(action: {
-                isOutlinePresented.toggle()
-            }) {
-                Image(systemName: "list.bullet")
-                    .imageScale(.large)
-            }
-            .sheet(isPresented: $isOutlinePresented, onDismiss: {
-                // Restore tool picker visibility when sheet is dismissed
-                coordinator.canvasView.becomeFirstResponder()
-                coordinator.toolPicker.setVisible(true, forFirstResponder: coordinator.canvasView)
-            }) {
-                NavigationView {
-                    OutlineListView(
-                        outline: coordinator.pdfView.document?.outlineRoot,
-                        coordinator: coordinator,
-                        viewModel: viewModel
-                    )
-                    .navigationTitle("Table of Contents")
-                }
-            }
-            
-            Spacer()
-        }
-    }
-}
-
-struct OutlineListView: View {
     let outline: PDFOutline?
-    let coordinator: PDFDrawingCoordinator
-    @ObservedObject var viewModel: PDFDrawingViewModel
+    @ObservedObject var viewModel: PDFEditorViewModel
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
@@ -59,7 +25,6 @@ struct OutlineListView: View {
                     if let child = outline.child(at: index) {
                         OutlineItemView(
                             outline: child,
-                            coordinator: coordinator,
                             viewModel: viewModel,
                             dismiss: dismiss
                         )
@@ -75,8 +40,7 @@ struct OutlineListView: View {
 
 struct OutlineItemView: View {
     let outline: PDFOutline
-    let coordinator: PDFDrawingCoordinator
-    @ObservedObject var viewModel: PDFDrawingViewModel
+    @ObservedObject var viewModel: PDFEditorViewModel
     let dismiss: DismissAction
     @State private var isExpanded = false
     
@@ -101,7 +65,6 @@ struct OutlineItemView: View {
                     if let child = outline.child(at: index) {
                         OutlineItemView(
                             outline: child,
-                            coordinator: coordinator,
                             viewModel: viewModel,
                             dismiss: dismiss
                         )
@@ -115,17 +78,16 @@ struct OutlineItemView: View {
     private func navigateToDestination() {
         if let destination = outline.destination,
            let targetPage = destination.page,
-           let pageIndex = coordinator.pdfView.document?.index(for: targetPage) {
+           let pageIndex = viewModel.pdfView.document?.index(for: targetPage) {
             
-            if let newPage = viewModel.moveToPage(pageIndex, currentDrawing: coordinator.canvasView.drawing) {
-                coordinator.pdfView.go(to: newPage)
-                coordinator.canvasView.drawing = viewModel.loadDrawing()
+            if let newPage = viewModel.moveToPage(pageIndex) {
+                viewModel.pdfView.go(to: newPage)
                 dismiss()
                 
                 // Ensure tool picker remains visible after navigation
                 DispatchQueue.main.async {
-                    coordinator.canvasView.becomeFirstResponder()
-                    coordinator.toolPicker.setVisible(true, forFirstResponder: coordinator.canvasView)
+                    viewModel.canvasView.becomeFirstResponder()
+                    viewModel.toolPicker.setVisible(true, forFirstResponder: viewModel.canvasView)
                 }
             }
         }

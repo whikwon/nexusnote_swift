@@ -9,29 +9,27 @@ import SwiftUI
 import PDFKit
 import SwiftData
 
+// PDFEditorView.swift
 struct PDFEditorView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.dismiss) private var dismiss
-    @StateObject private var viewModel: PDFDrawingViewModel
-    private let coordinator: PDFDrawingCoordinator
+    @StateObject private var viewModel: PDFEditorViewModel
     
     init(pdfDocument: PDFDocument) {
-        _viewModel = StateObject(wrappedValue: PDFDrawingViewModel(
+        _viewModel = StateObject(wrappedValue: PDFEditorViewModel(
             pdfDocument: pdfDocument,
             modelContext: ModelContext(try! ModelContainer(for: DrawingModel.self))
         ))
-        coordinator = PDFDrawingCoordinator(pdfDocument: pdfDocument)
     }
     
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                if coordinator.pdfView.document != nil {
-                    PDFNavigationView(viewModel: viewModel, coordinator: coordinator)
-                    PDFDrawingView(viewModel: viewModel, coordinator: coordinator)
+                if viewModel.pdfDocument != nil {
+                    PDFNavigationView(viewModel: viewModel)
+                    PDFContainerView(viewModel: viewModel)
                         .onAppear {
-                            coordinator.canvasView.drawing = viewModel.loadDrawing()
+                            viewModel.loadDrawingForCurrentPage()
                         }
                 } else {
                     Text("PDF not found")
@@ -41,11 +39,11 @@ struct PDFEditorView: View {
             }
             .onChange(of: scenePhase) { oldPhase, newPhase in
                 if newPhase == .inactive || newPhase == .background {
-                    viewModel.saveDrawing(coordinator.canvasView.drawing)
+                    viewModel.saveCurrentDrawing()
                 }
             }
             .onReceive(Timer.publish(every: 5, on: .main, in: .common).autoconnect()) { _ in
-                viewModel.saveDrawing(coordinator.canvasView.drawing)
+                viewModel.saveCurrentDrawing()
             }
         }
     }

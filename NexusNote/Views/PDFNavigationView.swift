@@ -9,17 +9,37 @@ import SwiftUI
 import PDFKit
 
 struct PDFNavigationView: View {
-    @ObservedObject var viewModel: PDFDrawingViewModel
-    let coordinator: PDFDrawingCoordinator
+    @ObservedObject var viewModel: PDFEditorViewModel
+    @State private var isOutlinePresented = false
     
     var body: some View {
         HStack {
-            PDFOutlineView(viewModel: viewModel, coordinator: coordinator)
-            
+            // Outline Button
             Button(action: {
-                if let newPage = viewModel.previousPage(currentDrawing: coordinator.canvasView.drawing) {
-                    coordinator.pdfView.go(to: newPage)
-                    coordinator.canvasView.drawing = viewModel.loadDrawing()
+                isOutlinePresented.toggle()
+            }) {
+                Image(systemName: "list.bullet")
+                    .imageScale(.large)
+            }
+            .sheet(isPresented: $isOutlinePresented, onDismiss: {
+                viewModel.canvasView.becomeFirstResponder()
+                viewModel.toolPicker.setVisible(true, forFirstResponder: viewModel.canvasView)
+            }) {
+                NavigationView {
+                    PDFOutlineView(
+                        outline: viewModel.pdfView.document?.outlineRoot,
+                        viewModel: viewModel
+                    )
+                    .navigationTitle("Table of Contents")
+                }
+            }
+            
+            Spacer()
+            
+            // Page Navigation
+            Button(action: {
+                if let newPage = viewModel.previousPage() {
+                    viewModel.pdfView.go(to: newPage)
                 }
             }) {
                 Image(systemName: "chevron.left")
@@ -31,9 +51,8 @@ struct PDFNavigationView: View {
                 .font(.headline)
             
             Button(action: {
-                if let newPage = viewModel.nextPage(currentDrawing: coordinator.canvasView.drawing) {
-                    coordinator.pdfView.go(to: newPage)
-                    coordinator.canvasView.drawing = viewModel.loadDrawing()
+                if let newPage = viewModel.nextPage() {
+                    viewModel.pdfView.go(to: newPage)
                 }
             }) {
                 Image(systemName: "chevron.right")
